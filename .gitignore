@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.spec
+
+# Environment
+.env
+.venv/
+venv/
+
+# Audio temporaire
+tmp_audio/
+
+# Transcripts et résumés (données générées, volumineuses)
+transcripts/
+summaries/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code (config locale)
+.claude/settings.local.json
