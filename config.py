@@ -26,7 +26,7 @@ RADIO_FRANCE_API_BASE = "https://api.radiofrance.fr/v1"
 RADIO_FRANCE_TOKEN = "9ab343ce-cae2-4bdb-90ca-526a3dede870"
 
 # Transcription locale
-WHISPER_MODEL = os.getenv("WHISPER_MODEL", "medium")
+WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
 # Limites
 MAX_SELECTIONS = 10

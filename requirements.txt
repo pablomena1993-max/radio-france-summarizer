@@ -4,3 +4,4 @@ python-dotenv>=1.0
 rich>=13.0
 fpdf2>=2.8
 customtkinter>=5.2
+groq>=1.0

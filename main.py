@@ -1,7 +1,13 @@
 """CLI interactif — liste tous les podcasts Radio France des dernières 24h par catégorie."""
 
 import sys
+import os
 from datetime import datetime
+
+os.environ.setdefault("PYTHONIOENCODING", "utf-8")
+if sys.stdout.encoding != "utf-8":
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 from rich.console import Console
 from rich.table import Table
