@@ -29,8 +29,9 @@ RADIO_FRANCE_TOKEN = "9ab343ce-cae2-4bdb-90ca-526a3dede870"
 WHISPER_MODEL = os.getenv("WHISPER_MODEL", "small")
 
 # Limites
-MAX_SELECTIONS = 10
-EPISODES_PER_PAGE = 20
+MAX_SELECTIONS = 20
+EPISODES_PER_PAGE = 50
+DEFAULT_MIN_DURATION = 15 * 60  # 15 minutes en secondes
 
 # Stations Radio France
 STATIONS = [

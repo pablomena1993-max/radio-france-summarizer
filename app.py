@@ -7,7 +7,7 @@ from pathlib import Path
 
 import customtkinter as ctk
 
-from config import MAX_SELECTIONS, TRANSCRIPTS_DIR, SUMMARIES_DIR
+from config import MAX_SELECTIONS, EPISODES_PER_PAGE, DEFAULT_MIN_DURATION, TRANSCRIPTS_DIR, SUMMARIES_DIR
 from radio_france import get_all_recent_podcasts, group_by_theme
 from downloader import download_episode, cleanup
 from transcriber import (
@@ -64,7 +64,9 @@ class PodcastApp(ctk.CTk):
         self.claude_ok = False
         self.all_themes: list[str] = []
         self.current_theme_filter = "Tous les thèmes"
-        self.current_min_duration = 0
+        self.current_min_duration = DEFAULT_MIN_DURATION
+        self._slider_after_id = None
+        self._displayed_count = 0
 
         self._build_ui()
         self._check_auth_async()
@@ -191,8 +193,9 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=12), text_color=C_TEXT_DIM,
         ).pack(side="left", padx=(12, 4))
 
+        self._search_after_id = None
         self.search_var = ctk.StringVar()
-        self.search_var.trace_add("write", lambda *_: self._apply_filters())
+        self.search_var.trace_add("write", lambda *_: self._debounce_search())
         self.search_entry = ctk.CTkEntry(
             self.filter_frame, textvariable=self.search_var,
             placeholder_text="Titre, emission, station...",
@@ -224,7 +227,7 @@ class PodcastApp(ctk.CTk):
         ).pack(side="left", padx=(0, 4))
 
         self.duration_label = ctk.CTkLabel(
-            self.filter_frame, text="0 min",
+            self.filter_frame, text=f"{DEFAULT_MIN_DURATION // 60} min",
             font=ctk.CTkFont(size=12, weight="bold"), text_color=C_ACCENT,
             width=55,
         )
@@ -235,7 +238,7 @@ class PodcastApp(ctk.CTk):
             width=160, height=18,
             progress_color=C_ACCENT, button_color=C_ACCENT,
         )
-        self.duration_slider.set(0)
+        self.duration_slider.set(DEFAULT_MIN_DURATION // 60)
         self.duration_slider.pack(side="left", padx=(0, 4))
         self.duration_label.pack(side="left", padx=(0, 12))
 
@@ -379,8 +382,8 @@ class PodcastApp(ctk.CTk):
 
         # Reset filters
         self.current_theme_filter = "Tous les themes"
-        self.current_min_duration = 0
-        self.duration_slider.set(0)
+        self.current_min_duration = DEFAULT_MIN_DURATION
+        self.duration_slider.set(DEFAULT_MIN_DURATION // 60)
         self.search_var.set("")
 
         # Reset selection
@@ -398,6 +401,11 @@ class PodcastApp(ctk.CTk):
     #  Filters
     # ═══════════════════════════════════════════════════════════════
 
+    def _debounce_search(self):
+        if self._search_after_id:
+            self.after_cancel(self._search_after_id)
+        self._search_after_id = self.after(250, self._apply_filters)
+
     def _on_theme_changed(self, value: str):
         self.current_theme_filter = value
         self._apply_filters()
@@ -413,7 +421,10 @@ class PodcastApp(ctk.CTk):
             h = mins // 60
             m = mins % 60
             self.duration_label.configure(text=f"{h}h{m:02d}" if m else f"{h}h")
-        self._apply_filters()
+        # Debounce : attendre 200ms avant de re-rendre
+        if self._slider_after_id:
+            self.after_cancel(self._slider_after_id)
+        self._slider_after_id = self.after(200, self._apply_filters)
 
     def _apply_filters(self):
         if not self.podcasts:
@@ -459,6 +470,7 @@ class PodcastApp(ctk.CTk):
         for widget in self.scroll_frame.winfo_children():
             widget.destroy()
         self.row_frames.clear()
+        self._displayed_count = 0
 
         if not self.filtered_podcasts:
             ctk.CTkLabel(
@@ -469,60 +481,106 @@ class PodcastApp(ctk.CTk):
             self.results_label.configure(text="0 resultats")
             return
 
-        # Group filtered podcasts by theme for display
+        # Build flat list with theme headers
+        self._flat_items = []
         groups = group_by_theme(self.filtered_podcasts)
-
-        total_displayed = 0
         for theme_name, theme_podcasts in groups.items():
-            # Theme header
-            theme_header = ctk.CTkFrame(self.scroll_frame, fg_color=C_BG_CARD, corner_radius=8)
-            theme_header.pack(fill="x", pady=(10, 3))
-
-            ctk.CTkLabel(
-                theme_header,
-                text=f"  {theme_name}  ({len(theme_podcasts)})",
-                font=ctk.CTkFont(size=14, weight="bold"), text_color="#93c5fd",
-            ).pack(side="left", padx=8, pady=5)
-
-            # Select all for this theme
-            def _select_theme(podcasts=theme_podcasts):
-                for p in podcasts:
-                    pid = p["id"]
-                    if not self.checkbox_vars[pid].get() and self.selection_count < MAX_SELECTIONS:
-                        self.checkbox_vars[pid].set(True)
-                        self.selection_count += 1
-                        self._style_row(pid)
-                self._update_counter()
-
-            ctk.CTkButton(
-                theme_header, text="Selectionner ce theme",
-                command=_select_theme,
-                height=24, font=ctk.CTkFont(size=10),
-                fg_color="#374151", hover_color="#4b5563", width=130,
-            ).pack(side="right", padx=8, pady=5)
-
-            # Column headers
-            col_header = ctk.CTkFrame(self.scroll_frame, fg_color="transparent", height=22)
-            col_header.pack(fill="x", padx=4, pady=(2, 0))
-
-            for text, width, anchor in [
-                ("", 32, "w"), ("Heure", 55, "w"), ("Duree", 55, "w"),
-                ("Station", 110, "w"), ("Emission", 180, "w"), ("Titre", 400, "w"),
-            ]:
-                ctk.CTkLabel(
-                    col_header, text=text, width=width,
-                    font=ctk.CTkFont(size=10), text_color=C_TEXT_MUTED, anchor=anchor,
-                ).pack(side="left", padx=2)
-
-            # Podcast rows
+            self._flat_items.append(("theme", theme_name, theme_podcasts))
             for p in theme_podcasts:
-                self._add_podcast_row(p)
-                total_displayed += 1
+                self._flat_items.append(("podcast", p, None))
 
+        self._render_page()
+        self._update_status_bar()
+
+    def _render_page(self):
+        """Render the next page of items (append, don't destroy)."""
+        start = self._displayed_count
+        rendered_podcasts = 0
+        i = 0
+        current_theme_rendered = False
+
+        for item_type, data, extra in self._flat_items:
+            if item_type == "theme":
+                if i > start or not current_theme_rendered:
+                    current_theme_rendered = True
+                continue
+            # item_type == "podcast"
+            i += 1
+            if i <= start:
+                continue
+            if rendered_podcasts >= EPISODES_PER_PAGE:
+                break
+
+            # Render theme header if needed (find parent theme)
+            if not current_theme_rendered or rendered_podcasts == 0:
+                # Find the theme for this podcast
+                for ti, (t, d, e) in enumerate(self._flat_items):
+                    if t == "podcast" and d["id"] == data["id"]:
+                        # Look backwards for theme
+                        for j in range(ti - 1, -1, -1):
+                            if self._flat_items[j][0] == "theme":
+                                self._render_theme_header(self._flat_items[j][1], self._flat_items[j][2])
+                                break
+                        break
+
+            self._add_podcast_row(data)
+            rendered_podcasts += 1
+
+        self._displayed_count = start + rendered_podcasts
+        total = sum(1 for t, _, _ in self._flat_items if t == "podcast")
+
+        # Show "Load more" button if more items remain
+        if self._displayed_count < total:
+            remaining = total - self._displayed_count
+            load_more = ctk.CTkButton(
+                self.scroll_frame,
+                text=f"Afficher plus ({remaining} restants)",
+                command=self._load_more,
+                height=34, font=ctk.CTkFont(size=12),
+                fg_color="#374151", hover_color="#4b5563",
+            )
+            load_more.pack(pady=10)
+
+    def _load_more(self):
+        # Remove the "load more" button
+        children = self.scroll_frame.winfo_children()
+        if children:
+            children[-1].destroy()
+        self._render_page()
+        self._update_status_bar()
+
+    def _render_theme_header(self, theme_name: str, theme_podcasts: list):
+        theme_header = ctk.CTkFrame(self.scroll_frame, fg_color=C_BG_CARD, corner_radius=8)
+        theme_header.pack(fill="x", pady=(10, 3))
+
+        ctk.CTkLabel(
+            theme_header,
+            text=f"  {theme_name}  ({len(theme_podcasts)})",
+            font=ctk.CTkFont(size=14, weight="bold"), text_color="#93c5fd",
+        ).pack(side="left", padx=8, pady=5)
+
+        def _select_theme(podcasts=theme_podcasts):
+            for p in podcasts:
+                pid = p["id"]
+                if not self.checkbox_vars[pid].get() and self.selection_count < MAX_SELECTIONS:
+                    self.checkbox_vars[pid].set(True)
+                    self.selection_count += 1
+                    self._style_row(pid)
+            self._update_counter()
+
+        ctk.CTkButton(
+            theme_header, text="Selectionner ce theme",
+            command=_select_theme,
+            height=24, font=ctk.CTkFont(size=10),
+            fg_color="#374151", hover_color="#4b5563", width=130,
+        ).pack(side="right", padx=8, pady=5)
+
+    def _update_status_bar(self):
+        total = len(self.filtered_podcasts)
         selected = sum(1 for v in self.checkbox_vars.values() if v.get())
-        self.results_label.configure(text=f"{total_displayed} resultats")
+        self.results_label.configure(text=f"{self._displayed_count}/{total} affiches")
         self._set_status(
-            f"{len(self.podcasts)} podcasts | {total_displayed} affiches | {selected} selectionnes"
+            f"{len(self.podcasts)} podcasts | {total} filtres | {selected} selectionnes"
         )
         self._update_counter()
 
@@ -536,7 +594,7 @@ class PodcastApp(ctk.CTk):
         row.pack(fill="x", padx=2, pady=1)
         self.row_frames[pid] = row
 
-        # Make entire row clickable
+        # Single bind on row — propagates to children via bindtags
         def _on_row_click(event, podcast_id=pid):
             self._toggle_selection(podcast_id)
 
@@ -561,7 +619,6 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=C_TEXT_DIM,
         )
         lbl_time.pack(side="left", padx=(0, 4))
-        lbl_time.bind("<Button-1>", _on_row_click)
 
         # Duration
         dur = format_duration(podcast["duration"]) if podcast["duration"] else ""
@@ -571,7 +628,6 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"), text_color=dur_color,
         )
         lbl_dur.pack(side="left", padx=(0, 4))
-        lbl_dur.bind("<Button-1>", _on_row_click)
 
         # Station
         lbl_station = ctk.CTkLabel(
@@ -579,7 +635,6 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=C_TEXT_MUTED, anchor="w",
         )
         lbl_station.pack(side="left", padx=(0, 4))
-        lbl_station.bind("<Button-1>", _on_row_click)
 
         # Show name
         lbl_show = ctk.CTkLabel(
@@ -587,7 +642,6 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=11, weight="bold"), text_color="#d1d5db", anchor="w",
         )
         lbl_show.pack(side="left", padx=(0, 4))
-        lbl_show.bind("<Button-1>", _on_row_click)
 
         # Title
         lbl_title = ctk.CTkLabel(
@@ -595,7 +649,10 @@ class PodcastApp(ctk.CTk):
             font=ctk.CTkFont(size=11), text_color=C_TEXT, anchor="w",
         )
         lbl_title.pack(side="left", fill="x", expand=True)
-        lbl_title.bind("<Button-1>", _on_row_click)
+
+        # Propagate clicks from labels to row
+        for child in (lbl_time, lbl_dur, lbl_station, lbl_show, lbl_title):
+            child.bind("<Button-1>", _on_row_click)
 
     # ═══════════════════════════════════════════════════════════════
     #  Selection
@@ -771,16 +828,18 @@ class PodcastApp(ctk.CTk):
             if not (SUMMARIES_DIR / t.with_suffix(".md").name).exists()
         ]
         if unsummarized:
+            has_engine = self.claude_ok or bool(os.environ.get("GROQ_API_KEY", "").strip())
             self.summarize_btn.configure(
-                state="normal" if self.claude_ok else "disabled",
+                state="normal" if has_engine else "disabled",
                 text=f"3. Resumer + PDF ({len(unsummarized)} en attente)",
             )
         else:
             self.summarize_btn.configure(state="disabled", text="3. Resumer + PDF")
 
     def _on_summarize(self):
-        if not self.claude_ok:
-            self._set_status("Claude Code non detecte. Lancez 'claude auth login'")
+        has_groq = bool(os.environ.get("GROQ_API_KEY", "").strip())
+        if not self.claude_ok and not has_groq:
+            self._set_status("Ni Groq ni Claude disponible. Configurez l'un des deux.")
             return
 
         self._disable_all_buttons()
@@ -817,8 +876,14 @@ class PodcastApp(ctk.CTk):
                 try:
                     markdown_to_pdf(md_path)
                     success += 1
-                except Exception:
-                    success += 1
+                except Exception as pdf_err:
+                    self.after(0, lambda e=pdf_err, n=name: self._set_status(
+                        f"Erreur PDF pour {n}: {e}"
+                    ))
+            else:
+                self.after(0, lambda n=name: self._set_status(
+                    f"Echec resume pour {n} — verifiez Groq/Claude"
+                ))
 
             self.after(0, lambda idx=i: self.progress.set((idx + 1) / total))
 
@@ -855,8 +920,8 @@ class PodcastApp(ctk.CTk):
         threading.Thread(target=worker, daemon=True).start()
 
     def _save_groq_key(self, key: str):
-        """Sauvegarde la cle Groq dans .env pour persistence."""
-        from pathlib import Path
+        """Sauvegarde la cle Groq dans .env et os.environ pour persistence."""
+        os.environ["GROQ_API_KEY"] = key
         env_path = Path(__file__).parent / ".env"
         lines = []
         key_found = False

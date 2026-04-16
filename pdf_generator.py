@@ -20,14 +20,21 @@ class PodcastPDF(FPDF):
     def __init__(self):
         super().__init__()
         self.set_auto_page_break(auto=True, margin=20)
+        self._font_name = "Helvetica"
 
-        # Enregistrer les polices Unicode
-        self.add_font("Segoe", "", str(FONT_REGULAR), uni=True)
-        self.add_font("Segoe", "B", str(FONT_BOLD), uni=True)
-        self.add_font("Segoe", "I", str(FONT_ITALIC), uni=True)
+        # Tenter Segoe UI (Windows), sinon fallback Helvetica (builtin)
+        if FONT_REGULAR.exists() and FONT_BOLD.exists():
+            try:
+                self.add_font("Segoe", "", str(FONT_REGULAR))
+                self.add_font("Segoe", "B", str(FONT_BOLD))
+                if FONT_ITALIC.exists():
+                    self.add_font("Segoe", "I", str(FONT_ITALIC))
+                self._font_name = "Segoe"
+            except Exception:
+                pass
 
     def header(self):
-        self.set_font("Segoe", "B", 10)
+        self.set_font(self._font_name, "B", 10)
         self.set_text_color(130, 130, 130)
         self.cell(0, 8, "Radio France \u2014 Résumé de podcast", align="R", new_x="LMARGIN", new_y="NEXT")
         self.line(10, self.get_y(), 200, self.get_y())
@@ -35,27 +42,27 @@ class PodcastPDF(FPDF):
 
     def footer(self):
         self.set_y(-15)
-        self.set_font("Segoe", "I", 8)
+        self.set_font(self._font_name, "I", 8)
         self.set_text_color(150, 150, 150)
         self.cell(0, 10, f"Page {self.page_no()}/{{nb}}", align="C")
 
     def add_title(self, title: str):
-        self.set_font("Segoe", "B", 18)
+        self.set_font(self._font_name, "B", 18)
         self.set_text_color(20, 20, 80)
         self.multi_cell(0, 10, title)
         self.ln(2)
 
     def add_metadata(self, label: str, value: str):
-        self.set_font("Segoe", "B", 10)
+        self.set_font(self._font_name, "B", 10)
         self.set_text_color(80, 80, 80)
         self.cell(30, 6, f"{label} :")
-        self.set_font("Segoe", "", 10)
+        self.set_font(self._font_name, "", 10)
         self.set_text_color(40, 40, 40)
         self.cell(0, 6, value, new_x="LMARGIN", new_y="NEXT")
 
     def add_section(self, title: str):
         self.ln(4)
-        self.set_font("Segoe", "B", 13)
+        self.set_font(self._font_name, "B", 13)
         self.set_text_color(30, 30, 100)
         self.multi_cell(0, 8, title)
         self.set_draw_color(30, 30, 100)
@@ -64,26 +71,26 @@ class PodcastPDF(FPDF):
 
     def add_subsection(self, title: str):
         self.ln(2)
-        self.set_font("Segoe", "B", 11)
+        self.set_font(self._font_name, "B", 11)
         self.set_text_color(50, 50, 50)
         self.multi_cell(0, 7, title)
         self.ln(1)
 
     def add_paragraph(self, text: str):
-        self.set_font("Segoe", "", 10)
+        self.set_font(self._font_name, "", 10)
         self.set_text_color(30, 30, 30)
         self.multi_cell(0, 6, text)
         self.ln(2)
 
     def add_bullet(self, text: str):
-        self.set_font("Segoe", "", 10)
+        self.set_font(self._font_name, "", 10)
         self.set_text_color(30, 30, 30)
         self.cell(8, 6, "\u2022")
         self.multi_cell(0, 6, text)
         self.ln(1)
 
     def add_quote(self, text: str):
-        self.set_font("Segoe", "I", 10)
+        self.set_font(self._font_name, "I", 10)
         self.set_text_color(80, 80, 80)
         self.set_x(15)
         self.multi_cell(175, 6, f"\u00ab {text} \u00bb")
@@ -114,7 +121,6 @@ def markdown_to_pdf(md_path: Path, pdf_path: Path | None = None) -> Path:
         # Titre principal (# ...)
         if line.startswith("# ") and not line.startswith("## "):
             pdf.add_title(line[2:].strip())
-            in_header = True
 
         # Section (## ...)
         elif line.startswith("## "):
