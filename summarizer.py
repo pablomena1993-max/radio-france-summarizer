@@ -105,15 +105,18 @@ def _summarize_groq(transcript_text: str) -> str | None:
         )
 
         if resp.status_code == 429:
-            return None  # Rate limit → fallback Claude
+            print(f"[summarizer] Groq rate limit — fallback Claude")
+            return None
         if resp.status_code != 200:
+            print(f"[summarizer] Groq error {resp.status_code}: {resp.text[:200]}")
             return None
 
         result = resp.json()
         content = result["choices"][0]["message"]["content"].strip()
         return content if content else None
 
-    except Exception:
+    except Exception as e:
+        print(f"[summarizer] Groq exception: {e}")
         return None
 
 
