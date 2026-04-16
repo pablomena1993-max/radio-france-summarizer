@@ -262,72 +262,45 @@ class FichePDF(FPDF):
             self.ln(2)
 
     def build_themes(self, data: dict):
-        """Themes grid — 3 columns of cards."""
+        """Themes as full-width sections — no truncation."""
         themes = data.get("themes_developpes", [])
         if not themes:
             return
 
         self._section_title("THEMES DEVELOPPES")
 
-        col_w = (self.w - 28) / 3
-        margin_x = 10
+        for i, theme in enumerate(themes):
+            titre = theme.get("titre", "")
+            contenu = theme.get("contenu", "")
 
-        # Calculate card heights
-        row_items = []
-        current_row = []
-        for theme in themes:
-            current_row.append(theme)
-            if len(current_row) == 3:
-                row_items.append(current_row)
-                current_row = []
-        if current_row:
-            row_items.append(current_row)
-
-        for row in row_items:
-            # Estimate height needed
-            max_h = 30
-            for theme in row:
-                content = theme.get("contenu", "")
-                est_lines = max(3, len(content) // 45 + 1)
-                est_h = 16 + est_lines * 4.2
-                max_h = max(max_h, est_h)
-
-            max_h = min(max_h, 55)
-
-            if self.get_y() + max_h > self.h - 25:
+            if self.get_y() > self.h - 40:
                 self.add_page()
                 self.ln(8)
 
-            y = self.get_y()
+            # Theme number + title
+            self.set_x(10)
+            self.set_font(self._fn, "B", 10)
+            self.set_text_color(*self._accent)
+            self.cell(8, 6, f"{i + 1}.")
+            self.set_font(self._fn, "B", 10)
+            self.set_text_color(*C_TEXT)
+            self.multi_cell(self.w - 28, 6, titre)
+            self.ln(1)
 
-            for i, theme in enumerate(row):
-                x = margin_x + i * (col_w + 4)
-                titre = theme.get("titre", "")
-                contenu = theme.get("contenu", "")
+            # Full content — no truncation
+            self.set_x(18)
+            self.set_font(self._fn, "", 9)
+            self.set_text_color(*C_TEXT_LIGHT)
+            self.multi_cell(self.w - 28, 4.8, contenu)
+            self.ln(4)
 
-                # Card
-                self.set_draw_color(*C_CARD_BORDER)
-                self.set_fill_color(*C_WHITE)
-                self.rect(x, y, col_w, max_h, "DF")
-
-                # Title
-                self.set_xy(x + 3, y + 3)
-                self.set_font(self._fn, "B", 8.5)
-                self.set_text_color(*C_TEXT)
-                self.multi_cell(col_w - 6, 4.5, titre, new_x="LEFT", new_y="NEXT")
-
-                # Content
-                self.set_x(x + 3)
-                self.set_font(self._fn, "", 7.5)
-                self.set_text_color(*C_TEXT_LIGHT)
-                # Truncate if too long for the card
-                max_chars = int(max_h * 8)
-                display = contenu[:max_chars]
-                if len(contenu) > max_chars:
-                    display = display.rsplit(" ", 1)[0] + "..."
-                self.multi_cell(col_w - 6, 3.8, display)
-
-            self.set_y(y + max_h + 4)
+            # Subtle separator between themes
+            if i < len(themes) - 1:
+                self.set_draw_color(230, 225, 218)
+                self.set_line_width(0.2)
+                y = self.get_y()
+                self.line(18, y, self.w - 18, y)
+                self.ln(3)
 
     def build_chronologie(self, data: dict):
         """Timeline with date badges."""
@@ -440,6 +413,109 @@ class FichePDF(FPDF):
                 self.set_x(x_start)
             self._tag_pill(mot)
 
+    def build_fiche_recap(self, data: dict):
+        """Fiche recapitulative concentree — concepts cles en bref."""
+        themes = data.get("themes_developpes", [])
+        mots = data.get("mots_cles", [])
+        citations = data.get("citations", [])
+        chrono = data.get("chronologie", [])
+        if not themes:
+            return
+
+        self.add_page()
+        self.ln(4)
+
+        # Title bar
+        self.set_fill_color(*self._accent)
+        self.rect(10, self.get_y(), self.w - 20, 10, "F")
+        self.set_font(self._fn, "B", 12)
+        self.set_text_color(*C_WHITE)
+        self.set_x(14)
+        self.cell(0, 10, "FICHE RECAPITULATIVE — L'ESSENTIEL EN UN COUP D'OEIL")
+        self.ln(14)
+
+        # Concepts cles (from themes — titre only)
+        self.set_font(self._fn, "B", 9)
+        self.set_text_color(*C_ACCENT_DARK)
+        self.cell(0, 6, "CONCEPTS CLES", new_x="LMARGIN", new_y="NEXT")
+        self.ln(1)
+
+        for theme in themes:
+            titre = theme.get("titre", "")
+            contenu = theme.get("contenu", "")
+            # Extract first sentence as summary
+            first_sentence = contenu.split(".")[0] + "." if "." in contenu else contenu[:100]
+
+            self.set_x(14)
+            self.set_font(self._fn, "B", 8.5)
+            self.set_text_color(*C_TEXT)
+            self.cell(4, 5, "\u2022")
+            self.cell(0, 5, titre)
+            self.ln(5)
+            self.set_x(18)
+            self.set_font(self._fn, "", 8)
+            self.set_text_color(*C_TEXT_LIGHT)
+            self.multi_cell(self.w - 28, 4, first_sentence)
+            self.ln(1)
+
+        # Chiffres cles (extract numbers from resume)
+        resume = data.get("resume_general", "")
+        if resume:
+            self.ln(3)
+            self.set_font(self._fn, "B", 9)
+            self.set_text_color(*C_ACCENT_DARK)
+            self.cell(0, 6, "CHIFFRES CLES", new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
+
+            import re as regex
+            # Find all sentences with numbers
+            sentences = regex.split(r"(?<=[.!?])\s+", resume)
+            number_sentences = [s for s in sentences if regex.search(r"\d", s)]
+            for s in number_sentences[:8]:
+                clean = regex.sub(r"\*\*(.+?)\*\*", r"\1", s)
+                self.set_x(14)
+                self.set_font(self._fn, "", 8)
+                self.set_text_color(*C_TEXT)
+                self.cell(4, 4.5, "\u2022")
+                self.multi_cell(self.w - 28, 4.5, clean.strip())
+                self.ln(1)
+
+        # Key dates (condensed)
+        if chrono:
+            self.ln(3)
+            self.set_font(self._fn, "B", 9)
+            self.set_text_color(*C_ACCENT_DARK)
+            self.cell(0, 6, "DATES CLES", new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
+
+            for item in chrono:
+                date = str(item.get("date", ""))
+                evt = item.get("evenement", "")
+                self.set_x(14)
+                self.set_font(self._fn, "B", 8)
+                self.set_text_color(*self._accent)
+                self.cell(22, 4.5, date)
+                self.set_font(self._fn, "", 8)
+                self.set_text_color(*C_TEXT)
+                self.cell(0, 4.5, evt, new_x="LMARGIN", new_y="NEXT")
+
+        # Best citation
+        if citations:
+            self.ln(3)
+            self.set_font(self._fn, "B", 9)
+            self.set_text_color(*C_ACCENT_DARK)
+            self.cell(0, 6, "CITATION A RETENIR", new_x="LMARGIN", new_y="NEXT")
+            self.ln(1)
+            best = citations[0]
+            self.set_x(14)
+            self.set_font(self._fn, "I", 9)
+            self.set_text_color(*C_TEXT)
+            self.multi_cell(self.w - 28, 5, f"\u00ab {best.get('texte', '')} \u00bb")
+            self.set_x(14)
+            self.set_font(self._fn, "", 7.5)
+            self.set_text_color(*C_TEXT_MUTED)
+            self.cell(0, 5, f"— {best.get('auteur', '')}")
+
     def build_footer_bar(self, data: dict):
         """Bottom metadata bar."""
         self.ln(8)
@@ -482,6 +558,7 @@ def markdown_to_pdf(md_path: Path, pdf_path: Path | None = None) -> Path:
     pdf.build_chronologie(data)
     pdf.build_citations(data)
     pdf.build_apport(data)
+    pdf.build_fiche_recap(data)
     pdf.build_tags(data)
     pdf.build_footer_bar(data)
 

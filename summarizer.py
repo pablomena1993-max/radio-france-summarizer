@@ -277,18 +277,18 @@ def _summarize_claude(transcript_text: str) -> str | None:
 
 def summarize_transcript(transcript_path: Path) -> Path | None:
     """
-    Résume un transcript. Priorité : Groq (rapide) → Claude CLI (premium).
+    Résume un transcript. Priorité : Claude CLI (qualité max) → Groq (fallback).
     Retourne le chemin du fichier .md généré, ou None si erreur.
     """
     transcript_text = transcript_path.read_text(encoding="utf-8")
     output_path = SUMMARIES_DIR / transcript_path.with_suffix(".md").name
 
-    # Essayer Groq d'abord (rapide, gratuit)
-    summary = _summarize_groq(transcript_text)
+    # Claude d'abord (meilleure qualité, pas de limite tokens)
+    summary = _summarize_claude(transcript_text)
 
-    # Fallback Claude CLI si Groq echoue
+    # Fallback Groq si Claude indisponible
     if not summary:
-        summary = _summarize_claude(transcript_text)
+        summary = _summarize_groq(transcript_text)
 
     if not summary:
         return None
