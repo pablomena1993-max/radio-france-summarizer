@@ -11,93 +11,72 @@ from config import TRANSCRIPTS_DIR, SUMMARIES_DIR
 
 GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
-SUMMARY_PROMPT = '''Tu es un expert en analyse et synthèse de contenus audio francophones.
-Lis le transcript de podcast ci-dessous et génère un compte-rendu TRÈS DÉTAILLÉ et EXHAUSTIF en Markdown.
-L'objectif est que le lecteur apprenne AUTANT que s'il avait écouté 100% du podcast.
+SUMMARY_PROMPT = '''Tu es un expert en analyse de contenus audio. Tu produis des fiches de synthese structurees.
 
-Le compte-rendu DOIT suivre cette structure exacte :
+Lis le transcript ci-dessous et genere une fiche au format YAML entre balises ```yaml ... ```.
+Respecte EXACTEMENT cette structure (les champs sont obligatoires) :
 
-# [Titre de l'épisode]
+```yaml
+titre: "[Titre clair et descriptif de l'episode]"
+sous_titre: "[Description en 1-2 phrases — la question centrale de l'emission]"
+emission: "[Nom de l'emission]"
+station: "[Station]"
+date: "[YYYY-MM-DD]"
+duree: "[XX min]"
+categories: ["cat1", "cat2"]
 
-**Émission** : [nom]
-**Station** : [station]
-**Date** : [date]
-**Catégories** : [thèmes]
+intervenants:
+  - nom: "[Prenom Nom]"
+    role: "[Titre, fonction, organisation]"
+    ouvrage: "[Livre ou reference cite, ou vide]"
+  - nom: "[...]"
+    role: "[...]"
 
----
+resume_general: |
+  [Resume dense de 8-15 phrases. Couvrir TOUT le contenu : contexte, enjeux, arguments principaux,
+  donnees chiffrees, exemples concrets, conclusions. Le lecteur doit comprendre 100% du podcast.
+  Mettre en **gras** les termes importants. Inclure les chiffres et dates mentionnes.]
 
-## Résumé exécutif
+themes_developpes:
+  - titre: "[Theme 1 — titre court]"
+    contenu: "[3-6 phrases detaillant ce theme avec exemples, chiffres, arguments]"
+  - titre: "[Theme 2]"
+    contenu: "[...]"
+  - titre: "[Theme 3]"
+    contenu: "[...]"
+  [Minimum 6 themes, maximum 12 — couvrir TOUS les sujets abordes]
 
-[5-8 phrases résumant l'essentiel — contexte, enjeux principaux, conclusions]
+chronologie:
+  - date: "[annee ou date]"
+    evenement: "[description courte]"
+    detail: "[contexte, pourquoi c'est important]"
+  [Uniquement si le podcast mentionne des dates/evenements historiques. Sinon, omettre cette section.]
 
-## Sujets abordés en détail
+citations:
+  - texte: "[Citation exacte ou quasi-exacte]"
+    auteur: "[Nom]"
+    contexte: "[a propos de quoi]"
+  - texte: "[...]"
+    auteur: "[...]"
+  [Minimum 3 citations, maximum 8]
 
-### [Sujet 1 — titre descriptif]
+apport_principal: |
+  [Synthese en 3-5 phrases : qu'est-ce que cette emission apporte de nouveau ou d'important ?
+  Quel est le message central ? Quelles perspectives ouvre-t-elle ?]
 
-**Contexte** : [Pourquoi ce sujet est abordé, quel est l'enjeu]
+mots_cles: ["mot1", "mot2", "mot3", "mot4", "mot5", "mot6", "mot7", "mot8", "mot9", "mot10"]
+```
 
-**Développement** : [Explication détaillée du sujet, avec TOUS les arguments avancés par les intervenants. Développer chaque point, ne rien omettre. Inclure les exemples concrets, les anecdotes, les cas pratiques mentionnés.]
-
-**Données et chiffres** :
-- [Chaque donnée chiffrée mentionnée dans le podcast, avec son contexte]
-
-**Citations marquantes** :
-> [Citation exacte 1]
-> [Citation exacte 2 si disponible]
-
-### [Sujet 2 — titre descriptif]
-[Même structure détaillée...]
-
-### [Sujet 3...]
-[Autant de sujets que nécessaire — ne pas fusionner des sujets distincts]
-
-## Exemples concrets et cas pratiques
-
-- **[Exemple 1]** : [description détaillée de l'exemple, pourquoi il est mentionné, ce qu'il illustre]
-- **[Exemple 2]** : [...]
-[Lister TOUS les exemples, anecdotes, études de cas, expériences personnelles mentionnés]
-
-## Personnes et organisations citées
-
-- **[Nom complet]** : [rôle exact, titre, organisation, pourquoi cette personne est citée]
-[Lister TOUTES les personnes mentionnées, même brièvement]
-
-## Concepts et idées clés
-
-- **[Concept 1]** : [explication détaillée — ce que c'est, pourquoi c'est important, comment ça fonctionne]
-- **[Concept 2]** : [...]
-[Chaque concept technique ou intellectuel doit être expliqué en 3-5 phrases minimum]
-
-## Points de débat et désaccords
-
-- [Positions divergentes entre les intervenants]
-- [Questions restées sans réponse]
-- [Nuances apportées par les experts]
-
-## Ce qu'il faut retenir (apprentissages clés)
-
-1. [Apprentissage concret 1 — formulé comme un fait ou un conseil actionnable]
-2. [Apprentissage concret 2]
-3. [...]
-[5-10 points clés que le lecteur doit absolument retenir]
-
-## Conclusions et perspectives
-
-- [Synthèse des positions]
-- [Recommandations des intervenants]
-- [Questions ouvertes pour l'avenir]
-
-RÈGLES IMPÉRATIVES :
-- Écris TOUJOURS en français
-- Sois EXHAUSTIF et DÉTAILLÉ : le lecteur ne doit PAS avoir besoin d'écouter le podcast
-- Préserve TOUS les noms propres, chiffres, dates, pourcentages et citations exactes
-- Ne simplifie JAMAIS les arguments complexes — développe-les avec tous les détails
-- Inclus TOUS les exemples concrets mentionnés dans le podcast
-- Chaque section doit être substantielle (pas de listes à 1 élément)
-- Le compte-rendu doit faire au minimum 2000 mots
-- Privilégie la richesse d'information sur la concision
-
-Voici le transcript :
+REGLES :
+- Ecris en francais
+- Sois EXHAUSTIF : le lecteur ne doit PAS avoir besoin d'ecouter le podcast
+- Preserve TOUS les noms, chiffres, dates, pourcentages
+- Les themes_developpes doivent couvrir TOUS les sujets abordes (minimum 6, idealement 9-12)
+- Chaque theme doit faire 4-8 phrases detaillees avec exemples et chiffres
+- Le resume_general doit faire au moins 10 phrases denses
+- Inclure au minimum 4 citations
+- Ne simplifie JAMAIS les arguments complexes
+- Utilise TOUTES les informations fournies, ne laisse rien de cote
 
 '''
 
@@ -111,12 +90,37 @@ def _get_groq_key() -> str | None:
     return os.environ.get("GROQ_API_KEY", "").strip() or None
 
 
-def _summarize_groq(transcript_text: str) -> str | None:
-    """Résume via Groq API (Llama 4 Maverick)."""
-    key = _get_groq_key()
-    if not key:
-        return None
+EXTRACT_PROMPT = '''Lis ce transcript de podcast et extrais TOUTES les informations importantes.
+Sois EXHAUSTIF — ne saute aucun argument, chiffre, nom, exemple ou citation.
 
+Produis une liste structuree :
+
+INTERVENANTS:
+- [Nom] | [Role/titre] | [Ouvrage cite]
+
+FAITS ET ARGUMENTS (liste TOUS les points, minimum 15):
+1. [fait/argument detaille avec contexte et chiffres]
+2. [...]
+
+EXEMPLES CONCRETS:
+- [chaque exemple, anecdote, etude de cas mentionne]
+
+CITATIONS (verbatim ou quasi-verbatim):
+- "[citation]" — [auteur] — [contexte]
+
+DATES/CHRONOLOGIE:
+- [date] : [evenement] — [pourquoi c'est important]
+
+CHIFFRES ET DONNEES:
+- [chaque chiffre, pourcentage, statistique mentionne avec son contexte]
+
+Transcript :
+
+'''
+
+
+def _groq_call(key: str, system: str, user: str, max_tokens: int = 8192) -> str | None:
+    """Appel Groq API avec gestion d'erreurs."""
     try:
         resp = httpx.post(
             "https://api.groq.com/openai/v1/chat/completions",
@@ -127,35 +131,75 @@ def _summarize_groq(transcript_text: str) -> str | None:
             json={
                 "model": GROQ_MODEL,
                 "messages": [
-                    {
-                        "role": "system",
-                        "content": "Tu es un expert en analyse et synthèse de contenus audio francophones. Tu produis des résumés exhaustifs, structurés et fidèles.",
-                    },
-                    {
-                        "role": "user",
-                        "content": SUMMARY_PROMPT + transcript_text,
-                    },
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
                 ],
                 "temperature": 0.3,
-                "max_tokens": 8192,
+                "max_tokens": max_tokens,
             },
-            timeout=120,
+            timeout=180,
         )
 
         if resp.status_code == 429:
-            print(f"[summarizer] Groq rate limit — fallback Claude")
+            print(f"[summarizer] Groq rate limit")
             return None
         if resp.status_code != 200:
             print(f"[summarizer] Groq error {resp.status_code}: {resp.text[:200]}")
             return None
 
-        result = resp.json()
-        content = result["choices"][0]["message"]["content"].strip()
-        return content if content else None
+        return resp.json()["choices"][0]["message"]["content"].strip() or None
 
     except Exception as e:
         print(f"[summarizer] Groq exception: {e}")
         return None
+
+
+def _summarize_groq(transcript_text: str) -> str | None:
+    """Résume via 2 appels Groq : extraction puis structuration YAML."""
+    key = _get_groq_key()
+    if not key:
+        return None
+
+    import time
+
+    # Découper le transcript en morceaux pour extraire plus de détails
+    words = transcript_text.split()
+    chunk_size = 4000  # ~4000 mots par morceau
+    chunks = []
+    for i in range(0, len(words), chunk_size):
+        chunks.append(" ".join(words[i:i + chunk_size]))
+
+    # Étape 1 : extraire les faits de chaque morceau
+    all_facts = []
+    for idx, chunk in enumerate(chunks):
+        print(f"[summarizer] Etape 1 : extraction {idx+1}/{len(chunks)}...")
+        facts = _groq_call(
+            key,
+            "Tu es un analyste meticuleux. Extrais TOUTES les informations sans rien omettre. Sois tres detaille.",
+            EXTRACT_PROMPT + chunk,
+            max_tokens=8192,
+        )
+        if facts:
+            all_facts.append(facts)
+        if idx < len(chunks) - 1:
+            time.sleep(2)
+
+    if not all_facts:
+        return None
+
+    combined_facts = "\n\n".join(all_facts)
+    print(f"[summarizer] {len(combined_facts.split())} mots de faits extraits au total")
+
+    # Étape 2 : structurer en YAML
+    time.sleep(2)
+    print("[summarizer] Etape 2 : structuration YAML...")
+    yaml_result = _groq_call(
+        key,
+        "Tu es un expert en synthese. Tu produis des fiches YAML ultra-detaillees. Utilise TOUTES les informations fournies.",
+        SUMMARY_PROMPT + "\n\nVoici TOUS les faits extraits du podcast :\n\n" + combined_facts,
+        max_tokens=8192,
+    )
+    return yaml_result
 
 
 # ═══════════════════════════════════════════════════════════════
