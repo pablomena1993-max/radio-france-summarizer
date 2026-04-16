@@ -12,9 +12,10 @@ from config import TRANSCRIPTS_DIR, SUMMARIES_DIR
 GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 SUMMARY_PROMPT = '''Tu es un expert en analyse et synthèse de contenus audio francophones.
-Lis le transcript de podcast ci-dessous et génère un résumé EXHAUSTIF en Markdown.
+Lis le transcript de podcast ci-dessous et génère un compte-rendu TRÈS DÉTAILLÉ et EXHAUSTIF en Markdown.
+L'objectif est que le lecteur apprenne AUTANT que s'il avait écouté 100% du podcast.
 
-Le résumé DOIT suivre cette structure exacte :
+Le compte-rendu DOIT suivre cette structure exacte :
 
 # [Titre de l'épisode]
 
@@ -27,37 +28,74 @@ Le résumé DOIT suivre cette structure exacte :
 
 ## Résumé exécutif
 
-[3-5 phrases résumant l'essentiel]
+[5-8 phrases résumant l'essentiel — contexte, enjeux principaux, conclusions]
 
-## Sujets abordés
+## Sujets abordés en détail
 
-### [Sujet 1]
+### [Sujet 1 — titre descriptif]
 
-[Contexte, enjeux, arguments des intervenants, données chiffrées]
+**Contexte** : [Pourquoi ce sujet est abordé, quel est l'enjeu]
 
-> [Citation marquante si disponible]
+**Développement** : [Explication détaillée du sujet, avec TOUS les arguments avancés par les intervenants. Développer chaque point, ne rien omettre. Inclure les exemples concrets, les anecdotes, les cas pratiques mentionnés.]
 
-### [Sujet 2]
-[...]
+**Données et chiffres** :
+- [Chaque donnée chiffrée mentionnée dans le podcast, avec son contexte]
 
-## Personnes et organisations
+**Citations marquantes** :
+> [Citation exacte 1]
+> [Citation exacte 2 si disponible]
 
-- **[Nom]** : [rôle/contexte]
+### [Sujet 2 — titre descriptif]
+[Même structure détaillée...]
+
+### [Sujet 3...]
+[Autant de sujets que nécessaire — ne pas fusionner des sujets distincts]
+
+## Exemples concrets et cas pratiques
+
+- **[Exemple 1]** : [description détaillée de l'exemple, pourquoi il est mentionné, ce qu'il illustre]
+- **[Exemple 2]** : [...]
+[Lister TOUS les exemples, anecdotes, études de cas, expériences personnelles mentionnés]
+
+## Personnes et organisations citées
+
+- **[Nom complet]** : [rôle exact, titre, organisation, pourquoi cette personne est citée]
+[Lister TOUTES les personnes mentionnées, même brièvement]
 
 ## Concepts et idées clés
 
-- **[Concept]** : [explication détaillée]
+- **[Concept 1]** : [explication détaillée — ce que c'est, pourquoi c'est important, comment ça fonctionne]
+- **[Concept 2]** : [...]
+[Chaque concept technique ou intellectuel doit être expliqué en 3-5 phrases minimum]
+
+## Points de débat et désaccords
+
+- [Positions divergentes entre les intervenants]
+- [Questions restées sans réponse]
+- [Nuances apportées par les experts]
+
+## Ce qu'il faut retenir (apprentissages clés)
+
+1. [Apprentissage concret 1 — formulé comme un fait ou un conseil actionnable]
+2. [Apprentissage concret 2]
+3. [...]
+[5-10 points clés que le lecteur doit absolument retenir]
 
 ## Conclusions et perspectives
 
-- [Points de consensus ou désaccord]
-- [Questions ouvertes]
+- [Synthèse des positions]
+- [Recommandations des intervenants]
+- [Questions ouvertes pour l'avenir]
 
-RÈGLES :
-- Écris en français
-- Sois EXHAUSTIF : le lecteur ne doit PAS avoir besoin d'écouter le podcast
-- Préserve TOUS les noms propres, chiffres, dates et citations
-- Ne simplifie pas les arguments complexes, développe-les
+RÈGLES IMPÉRATIVES :
+- Écris TOUJOURS en français
+- Sois EXHAUSTIF et DÉTAILLÉ : le lecteur ne doit PAS avoir besoin d'écouter le podcast
+- Préserve TOUS les noms propres, chiffres, dates, pourcentages et citations exactes
+- Ne simplifie JAMAIS les arguments complexes — développe-les avec tous les détails
+- Inclus TOUS les exemples concrets mentionnés dans le podcast
+- Chaque section doit être substantielle (pas de listes à 1 élément)
+- Le compte-rendu doit faire au minimum 2000 mots
+- Privilégie la richesse d'information sur la concision
 
 Voici le transcript :
 
