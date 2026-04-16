@@ -9,7 +9,7 @@ import httpx
 
 from config import TRANSCRIPTS_DIR, SUMMARIES_DIR
 
-GROQ_MODEL = "meta-llama/llama-4-maverick-17b-128e-instruct"
+GROQ_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct"
 
 SUMMARY_PROMPT = '''Tu es un expert en analyse et synthèse de contenus audio francophones.
 Lis le transcript de podcast ci-dessous et génère un résumé EXHAUSTIF en Markdown.
